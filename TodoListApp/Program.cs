@@ -63,6 +63,10 @@ namespace TodoListApp
                         ViewTasks();
                         break;
 
+                    case "done":
+                        MarkTaskDone(parts);
+                        break;
+
                     case "exit":
                         Console.WriteLine("До свидания!");
                         return;
@@ -103,6 +107,7 @@ namespace TodoListApp
             Console.WriteLine("  profile     — показать данные пользователя");
             Console.WriteLine("  add \"текст\" — добавить задачу");
             Console.WriteLine("  view        — показать все задачи");
+            Console.WriteLine("  done <индекс> — отметить задачу выполненной");
             Console.WriteLine("  exit        — выйти из программы");
         }
 
@@ -157,6 +162,28 @@ namespace TodoListApp
                 Console.WriteLine(
                     $"{i} {todos[i]} {status} {dates[i]}");
             }
+        }
+
+        private static void MarkTaskDone(string[] parts)
+        {
+            if (parts.Length < CommandPartsLimit ||
+                !int.TryParse(parts[1], out int index))
+            {
+                Console.WriteLine(
+                    "Ошибка: укажите индекс задачи. Пример: done 0");
+                return;
+            }
+
+            if (index < 0 || index >= todoCount)
+            {
+                Console.WriteLine("Ошибка: задачи с таким индексом нет.");
+                return;
+            }
+
+            statuses[index] = true;
+            dates[index] = DateTime.Now;
+
+            Console.WriteLine($"Задача {index} отмечена как выполненная.");
         }
 
         private static bool TryExtractQuotedText(
