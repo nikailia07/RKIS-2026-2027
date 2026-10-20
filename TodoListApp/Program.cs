@@ -10,6 +10,8 @@ namespace TodoListApp
         private const int CommandPartsLimit = 2;
 
         private static string[] todos = new string[InitialCapacity];
+        private static bool[] statuses = new bool[InitialCapacity];
+        private static DateTime[] dates = new DateTime[InitialCapacity];
         private static int todoCount = 0;
 
         static void Main(string[] args)
@@ -128,7 +130,11 @@ namespace TodoListApp
             }
 
             EnsureCapacity();
+
             todos[todoCount] = taskText;
+            statuses[todoCount] = false;
+            dates[todoCount] = DateTime.Now;
+
             todoCount++;
 
             Console.WriteLine($"Задача добавлена: \"{taskText}\"");
@@ -146,7 +152,10 @@ namespace TodoListApp
 
             for (int i = 0; i < todoCount; i++)
             {
-                Console.WriteLine($"{i} {todos[i]}");
+                string status = statuses[i] ? "done" : "not done";
+
+                Console.WriteLine(
+                    $"{i} {todos[i]} {status} {dates[i]}");
             }
         }
 
@@ -176,16 +185,23 @@ namespace TodoListApp
             }
 
             int newCapacity = todos.Length * CapacityMultiplier;
+
             string[] newTodos = new string[newCapacity];
+            bool[] newStatuses = new bool[newCapacity];
+            DateTime[] newDates = new DateTime[newCapacity];
 
             for (int i = 0; i < todoCount; i++)
             {
                 newTodos[i] = todos[i];
+                newStatuses[i] = statuses[i];
+                newDates[i] = dates[i];
             }
 
             todos = newTodos;
+            statuses = newStatuses;
+            dates = newDates;
 
-            Console.WriteLine($"Массив расширен до {newCapacity} элементов.");
+            Console.WriteLine($"Массивы расширены до {newCapacity} элементов.");
         }
     }
 }
