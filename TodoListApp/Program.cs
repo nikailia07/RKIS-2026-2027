@@ -67,6 +67,10 @@ namespace TodoListApp
                         MarkTaskDone(parts);
                         break;
 
+                    case "delete":
+                        DeleteTask(parts);
+                        break;
+
                     case "exit":
                         Console.WriteLine("До свидания!");
                         return;
@@ -103,12 +107,13 @@ namespace TodoListApp
         private static void ShowHelp()
         {
             Console.WriteLine("Доступные команды:");
-            Console.WriteLine("  help        — показать список команд");
-            Console.WriteLine("  profile     — показать данные пользователя");
-            Console.WriteLine("  add \"текст\" — добавить задачу");
-            Console.WriteLine("  view        — показать все задачи");
+            Console.WriteLine("  help          — показать список команд");
+            Console.WriteLine("  profile       — показать данные пользователя");
+            Console.WriteLine("  add \"текст\"   — добавить задачу");
+            Console.WriteLine("  view          — показать все задачи");
             Console.WriteLine("  done <индекс> — отметить задачу выполненной");
-            Console.WriteLine("  exit        — выйти из программы");
+            Console.WriteLine("  delete <индекс> — удалить задачу");
+            Console.WriteLine("  exit          — выйти из программы");
         }
 
         private static void ShowProfile(
@@ -118,7 +123,6 @@ namespace TodoListApp
         {
             Console.WriteLine($"{firstName} {lastName}, {birthYear}");
         }
-
         private static void AddTask(string[] parts)
         {
             if (parts.Length < CommandPartsLimit)
@@ -174,9 +178,8 @@ namespace TodoListApp
                 return;
             }
 
-            if (index < 0 || index >= todoCount)
+            if (!IsValidIndex(index))
             {
-                Console.WriteLine("Ошибка: задачи с таким индексом нет.");
                 return;
             }
 
@@ -184,6 +187,48 @@ namespace TodoListApp
             dates[index] = DateTime.Now;
 
             Console.WriteLine($"Задача {index} отмечена как выполненная.");
+        }
+
+        private static void DeleteTask(string[] parts)
+        {
+            if (parts.Length < CommandPartsLimit ||
+                !int.TryParse(parts[1], out int index))
+            {
+                Console.WriteLine(
+                    "Ошибка: укажите индекс задачи. Пример: delete 0");
+                return;
+            }
+
+            if (!IsValidIndex(index))
+            {
+                return;
+            }
+
+            for (int i = index; i < todoCount - 1; i++)
+            {
+                todos[i] = todos[i + 1];
+                statuses[i] = statuses[i + 1];
+                dates[i] = dates[i + 1];
+            }
+
+            todoCount--;
+
+            todos[todoCount] = string.Empty;
+            statuses[todoCount] = false;
+            dates[todoCount] = default;
+
+            Console.WriteLine($"Задача {index} удалена.");
+        }
+
+        private static bool IsValidIndex(int index)
+        {
+            if (index < 0 || index >= todoCount)
+            {
+                Console.WriteLine("Ошибка: задачи с таким индексом нет.");
+                return false;
+            }
+
+            return true;
         }
 
         private static bool TryExtractQuotedText(
