@@ -71,6 +71,10 @@ namespace TodoListApp
                         DeleteTask(parts);
                         break;
 
+                    case "update":
+                        UpdateTask(parts);
+                        break;
+
                     case "exit":
                         Console.WriteLine("До свидания!");
                         return;
@@ -107,13 +111,14 @@ namespace TodoListApp
         private static void ShowHelp()
         {
             Console.WriteLine("Доступные команды:");
-            Console.WriteLine("  help          — показать список команд");
-            Console.WriteLine("  profile       — показать данные пользователя");
-            Console.WriteLine("  add \"текст\"   — добавить задачу");
-            Console.WriteLine("  view          — показать все задачи");
-            Console.WriteLine("  done <индекс> — отметить задачу выполненной");
-            Console.WriteLine("  delete <индекс> — удалить задачу");
-            Console.WriteLine("  exit          — выйти из программы");
+            Console.WriteLine("  help                    — показать список команд");
+            Console.WriteLine("  profile                 — показать данные пользователя");
+            Console.WriteLine("  add \"текст\"             — добавить задачу");
+            Console.WriteLine("  view                    — показать все задачи");
+            Console.WriteLine("  done <индекс>           — отметить задачу выполненной");
+            Console.WriteLine("  delete <индекс>         — удалить задачу");
+            Console.WriteLine("  update <индекс> \"текст\" — изменить задачу");
+            Console.WriteLine("  exit                    — выйти из программы");
         }
 
         private static void ShowProfile(
@@ -123,6 +128,7 @@ namespace TodoListApp
         {
             Console.WriteLine($"{firstName} {lastName}, {birthYear}");
         }
+
         private static void AddTask(string[] parts)
         {
             if (parts.Length < CommandPartsLimit)
@@ -173,8 +179,7 @@ namespace TodoListApp
             if (parts.Length < CommandPartsLimit ||
                 !int.TryParse(parts[1], out int index))
             {
-                Console.WriteLine(
-                    "Ошибка: укажите индекс задачи. Пример: done 0");
+                Console.WriteLine("Ошибка: укажите индекс задачи. Пример: done 0");
                 return;
             }
 
@@ -194,8 +199,7 @@ namespace TodoListApp
             if (parts.Length < CommandPartsLimit ||
                 !int.TryParse(parts[1], out int index))
             {
-                Console.WriteLine(
-                    "Ошибка: укажите индекс задачи. Пример: delete 0");
+                Console.WriteLine("Ошибка: укажите индекс задачи. Пример: delete 0");
                 return;
             }
 
@@ -218,6 +222,45 @@ namespace TodoListApp
             dates[todoCount] = default;
 
             Console.WriteLine($"Задача {index} удалена.");
+        }
+
+        private static void UpdateTask(string[] parts)
+        {
+            if (parts.Length < CommandPartsLimit)
+            {
+                Console.WriteLine(
+                    "Ошибка: укажите индекс и новый текст. Пример: update 0 \"Новый текст\"");
+                return;
+            }
+
+            string[] updateParts = parts[1].Split(
+                ' ',
+                CommandPartsLimit,
+                StringSplitOptions.RemoveEmptyEntries);
+
+            if (updateParts.Length < CommandPartsLimit ||
+                !int.TryParse(updateParts[0], out int index))
+            {
+                Console.WriteLine(
+                    "Ошибка: формат команды update <индекс> \"текст\".");
+                return;
+            }
+
+            if (!IsValidIndex(index))
+            {
+                return;
+            }
+
+            if (!TryExtractQuotedText(updateParts[1], out string newText))
+            {
+                Console.WriteLine("Ошибка: новый текст должен быть в кавычках.");
+                return;
+            }
+
+            todos[index] = newText;
+            dates[index] = DateTime.Now;
+
+            Console.WriteLine($"Задача {index} обновлена.");
         }
 
         private static bool IsValidIndex(int index)
