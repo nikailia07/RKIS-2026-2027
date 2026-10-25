@@ -1,322 +1,250 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
-namespace TodoListApp
+namespace TodoListApp;
+
+public class Program
 {
-    internal class Program
+    private static readonly List<TodoItem> _tasks = new List<TodoItem>();
+
+    public static void Main(string[] args)
     {
-        private const int InitialCapacity = 2;
-        private const int CapacityMultiplier = 2;
-        private const int CommandPartsLimit = 2;
+        // Ваша регистрация
+        Console.WriteLine("Работу выполнили Илиадис и Дедкова");
+        Console.Write("Введите имя: ");
+        string? name = Console.ReadLine();
+        Console.Write("Введите фамилию: ");
+        string? lastName = Console.ReadLine();
+        Console.Write("Введите год рождения: ");
+        string? year = Console.ReadLine();
 
-        private static string[] todos = new string[InitialCapacity];
-        private static bool[] statuses = new bool[InitialCapacity];
-        private static DateTime[] dates = new DateTime[InitialCapacity];
-        private static int todoCount = 0;
+        Console.WriteLine("\nДобро пожаловать в TodoList!");
+        Console.WriteLine("Введите help для списка команд.");
 
-        static void Main(string[] args)
+        // Основной цикл программы
+        while (true)
         {
-            Console.OutputEncoding = Encoding.UTF8;
-            Console.InputEncoding = Encoding.UTF8;
+            Console.Write("> ");
+            string? input = Console.ReadLine();
+            if (string.IsNullOrWhiteSpace(input)) continue;
+            if (input.ToLower() == "exit" || input.ToLower() == "quit") break;
 
-            Console.WriteLine("Работу выполнили Илиадис и Дедкова");
+            // Разбиваем ввод на аргументы (с поддержкой кавычек)
+            var commandArgs = ParseCommandLine(input);
+            if (commandArgs.Count == 0) continue;
 
-            string firstName = ReadValue("Введите имя:");
-            string lastName = ReadValue("Введите фамилию:");
-            int birthYear = ReadBirthYear();
+            string command = commandArgs[0].ToLower();
+            
+            // Отделяем флаги от текста
+            var flags = ParseFlags(commandArgs.Skip(1).ToArray());
+            var positionalArgs = commandArgs.Skip(1).Where(a => !a.StartsWith("-")).ToArray();
 
-            Console.WriteLine("\nДобро пожаловать в TodoList!");
-            Console.WriteLine("Введите help для списка команд.");
-
-            while (true)
+            switch (command)
             {
-                Console.Write("> ");
-                string input = Console.ReadLine() ?? string.Empty;
+                case "add": 
+                    HandleAdd(flags, positionalArgs); 
+                    break;
+                case "view": 
+                    HandleView(flags); 
+                    break;
+                case "read": 
+                    HandleRead(positionalArgs); 
+                    break;
+                case "help": 
+                    PrintHelp(); 
+                    break;
+                default: 
+                    Console.WriteLine("Неизвестная команда. Введите help для списка команд."); 
+                    break;
+            }
+        }
+    }
 
-                if (string.IsNullOrWhiteSpace(input))
+    // Разбивает строку на слова, учитывая кавычки (например: add "Купить хлеб")
+    private static List<string> ParseCommandLine(string input)
+    {
+        var result = new List<string>();
+        bool inQuotes = false;
+        string current = "";
+        foreach (char c in input)
+        {
+            if (c == '"') { inQuotes = !inQuotes; continue; }
+            if (c == ' ' && !inQuotes)
+            {
+                if (current != "") { result.Add(current); current = ""; }
+            }
+            else { current += c; }
+        }
+        if (current != "") result.Add(current);
+        return result;
+    }
+
+    // Парсинг флагов (-m, --multiline, -i, -s и т.д.)
+    private static Dictionary<string, bool> ParseFlags(string[] args)
+    {
+        var flags = new Dictionary<string, bool>();
+        foreach (var arg in args)
+        {
+            if (arg.StartsWith("--"))
+            {
+                flags[arg.Substring(2).ToLower()] = true;
+            }
+            else if (arg.StartsWith("-") && arg.Length > 1)
+            {
+                string shortFlags = arg.Substring(1).ToLower();
+                foreach (char c in shortFlags)
                 {
-                    continue;
-                }
-
-                string[] parts = input.Split(
-                    ' ',
-                    CommandPartsLimit,
-                    StringSplitOptions.RemoveEmptyEntries);
-
-                string command = parts[0].ToLowerInvariant();
-
-                switch (command)
-                {
-                    case "help":
-                        ShowHelp();
-                        break;
-
-                    case "profile":
-                        ShowProfile(firstName, lastName, birthYear);
-                        break;
-
-                    case "add":
-                        AddTask(parts);
-                        break;
-
-                    case "view":
-                        ViewTasks();
-                        break;
-
-                    case "done":
-                        MarkTaskDone(parts);
-                        break;
-
-                    case "delete":
-                        DeleteTask(parts);
-                        break;
-
-                    case "update":
-                        UpdateTask(parts);
-                        break;
-
-                    case "exit":
-                        Console.WriteLine("До свидания!");
-                        return;
-
-                    default:
-                        Console.WriteLine(
-                            "Неизвестная команда. Введите help для списка команд.");
-                        break;
+                    string flag = c switch 
+                    { 
+                        'm' => "multiline",
+                        'i' => "index",
+                        's' => "status",
+                        'd' => "update-date",
+                        'a' => "all",
+                        _ => c.ToString() 
+                    };
+                    flags[flag] = true;
                 }
             }
         }
+        return flags;
+    }
 
-        private static string ReadValue(string prompt)
-        {
-            Console.WriteLine(prompt);
-            return Console.ReadLine() ?? string.Empty;
-        }
+    private static void HandleAdd(Dictionary<string, bool> flags, string[] args)
+    {
+        bool isMulti = flags.ContainsKey("multiline");
 
-        private static int ReadBirthYear()
+        if (isMulti)
         {
-            while (true)
+            Console.WriteLine("Введите строки (для завершения введите '!end'):");
+            var lines = new List<string>();
+            string? line;
+            while ((line = Console.ReadLine()) != null)
             {
-                string value = ReadValue("Введите год рождения:");
-
-                if (int.TryParse(value, out int birthYear))
-                {
-                    return birthYear;
-                }
-
-                Console.WriteLine("Ошибка: введите год числом.");
-            }
-        }
-
-        private static void ShowHelp()
-        {
-            Console.WriteLine("Доступные команды:");
-            Console.WriteLine("  help                    — показать список команд");
-            Console.WriteLine("  profile                 — показать данные пользователя");
-            Console.WriteLine("  add \"текст\"             — добавить задачу");
-            Console.WriteLine("  view                    — показать все задачи");
-            Console.WriteLine("  done <индекс>           — отметить задачу выполненной");
-            Console.WriteLine("  delete <индекс>         — удалить задачу");
-            Console.WriteLine("  update <индекс> \"текст\" — изменить задачу");
-            Console.WriteLine("  exit                    — выйти из программы");
-        }
-
-        private static void ShowProfile(
-            string firstName,
-            string lastName,
-            int birthYear)
-        {
-            Console.WriteLine($"{firstName} {lastName}, {birthYear}");
-        }
-
-        private static void AddTask(string[] parts)
-        {
-            if (parts.Length < CommandPartsLimit)
-            {
-                Console.WriteLine(
-                    "Ошибка: укажите текст задачи в кавычках. Пример: add \"Купить хлеб\"");
-                return;
+                if (line.Trim().Equals("!end", StringComparison.OrdinalIgnoreCase)) break;
+                lines.Add(line);
             }
 
-            if (!TryExtractQuotedText(parts[1], out string taskText))
+            if (lines.Count > 0)
             {
-                Console.WriteLine("Ошибка: текст задачи должен быть в кавычках.");
-                return;
-            }
-
-            EnsureCapacity();
-
-            todos[todoCount] = taskText;
-            statuses[todoCount] = false;
-            dates[todoCount] = DateTime.Now;
-
-            todoCount++;
-
-            Console.WriteLine($"Задача добавлена: \"{taskText}\"");
-        }
-
-        private static void ViewTasks()
-        {
-            if (todoCount == 0)
-            {
-                Console.WriteLine("Список задач пуст.");
-                return;
-            }
-
-            Console.WriteLine("Ваши задачи:");
-
-            for (int i = 0; i < todoCount; i++)
-            {
-                string status = statuses[i] ? "done" : "not done";
-
-                Console.WriteLine(
-                    $"{i} {todos[i]} {status} {dates[i]}");
+                _tasks.Add(new TodoItem { Text = string.Join("\n", lines) });
+                Console.WriteLine("Многострочная задача добавлена.");
             }
         }
-
-        private static void MarkTaskDone(string[] parts)
+        else
         {
-            if (parts.Length < CommandPartsLimit ||
-                !int.TryParse(parts[1], out int index))
+            string text = string.Join(" ", args);
+            if (string.IsNullOrWhiteSpace(text))
             {
-                Console.WriteLine("Ошибка: укажите индекс задачи. Пример: done 0");
-                return;
+                Console.Write("Введите текст задачи: ");
+                text = Console.ReadLine() ?? "";
             }
-
-            if (!IsValidIndex(index))
+            
+            if (!string.IsNullOrWhiteSpace(text))
             {
-                return;
+                _tasks.Add(new TodoItem { Text = text.Trim() });
+                Console.WriteLine("Задача добавлена.");
             }
+        }
+    }
 
-            statuses[index] = true;
-            dates[index] = DateTime.Now;
+    private static void HandleView(Dictionary<string, bool> flags)
+    {
+        if (_tasks.Count == 0) { Console.WriteLine("Список пуст."); return; }
 
-            Console.WriteLine($"Задача {index} отмечена как выполненная.");
+        bool showIndex = flags.ContainsKey("index");
+        bool showStatus = flags.ContainsKey("status");
+        bool showDate = flags.ContainsKey("update-date");
+        bool showAll = flags.ContainsKey("all");
+
+        if (showAll) { showIndex = true; showStatus = true; showDate = true; }
+
+        var headers = new List<string>();
+        if (showIndex) headers.Add("ID");
+        headers.Add("Текст задачи");
+        if (showStatus) headers.Add("Статус");
+        if (showDate) headers.Add("Дата изм.");
+
+        var rows = new List<string[]>();
+        for (int i = 0; i < _tasks.Count; i++)
+        {
+            var task = _tasks[i];
+            var row = new List<string>();
+            if (showIndex) row.Add((i + 1).ToString());
+
+            // Обрезка до 30 символов
+            string displayText = task.Text.Length > 30 ? task.Text.Substring(0, 30) + "..." : task.Text;
+            displayText = displayText.Replace("\n", " ").Replace("\r", "");
+            row.Add(displayText);
+
+            if (showStatus) row.Add(task.IsCompleted ? "Выполнена" : "Не выполнена");
+            if (showDate) row.Add(task.LastModified.ToString("dd.MM.yy HH:mm"));
+            rows.Add(row.ToArray());
+        }
+        PrintTable(headers, rows);
+    }
+
+    private static void HandleRead(string[] args)
+    {
+        if (args.Length == 0)
+        {
+            Console.WriteLine("Укажите ID: read <idx>");
+            return;
         }
 
-        private static void DeleteTask(string[] parts)
+        if (!int.TryParse(args[0], out int index) || index < 1 || index > _tasks.Count)
         {
-            if (parts.Length < CommandPartsLimit ||
-                !int.TryParse(parts[1], out int index))
-            {
-                Console.WriteLine("Ошибка: укажите индекс задачи. Пример: delete 0");
-                return;
-            }
-
-            if (!IsValidIndex(index))
-            {
-                return;
-            }
-
-            for (int i = index; i < todoCount - 1; i++)
-            {
-                todos[i] = todos[i + 1];
-                statuses[i] = statuses[i + 1];
-                dates[i] = dates[i + 1];
-            }
-
-            todoCount--;
-
-            todos[todoCount] = string.Empty;
-            statuses[todoCount] = false;
-            dates[todoCount] = default;
-
-            Console.WriteLine($"Задача {index} удалена.");
+            Console.WriteLine($"Ошибка: укажите число от 1 до {_tasks.Count}.");
+            return;
         }
 
-        private static void UpdateTask(string[] parts)
+        var task = _tasks[index - 1];
+        Console.WriteLine("==================================");
+        Console.WriteLine($"Задача #{index}:");
+        Console.WriteLine("----------------------------------");
+        Console.WriteLine(task.Text);
+        Console.WriteLine("----------------------------------");
+        Console.WriteLine($"Статус: {(task.IsCompleted ? "Выполнена" : "Не выполнена")}");
+        Console.WriteLine($"Изменено: {task.LastModified:dd.MM.yyyy HH:mm:ss}");
+        Console.WriteLine("==================================");
+    }
+
+    private static void PrintTable(List<string> headers, List<string[]> rows)
+    {
+        int[] widths = new int[headers.Count];
+        for (int i = 0; i < headers.Count; i++)
         {
-            if (parts.Length < CommandPartsLimit)
-            {
-                Console.WriteLine(
-                    "Ошибка: укажите индекс и новый текст. Пример: update 0 \"Новый текст\"");
-                return;
-            }
-
-            string[] updateParts = parts[1].Split(
-                ' ',
-                CommandPartsLimit,
-                StringSplitOptions.RemoveEmptyEntries);
-
-            if (updateParts.Length < CommandPartsLimit ||
-                !int.TryParse(updateParts[0], out int index))
-            {
-                Console.WriteLine(
-                    "Ошибка: формат команды update <индекс> \"текст\".");
-                return;
-            }
-
-            if (!IsValidIndex(index))
-            {
-                return;
-            }
-
-            if (!TryExtractQuotedText(updateParts[1], out string newText))
-            {
-                Console.WriteLine("Ошибка: новый текст должен быть в кавычках.");
-                return;
-            }
-
-            todos[index] = newText;
-            dates[index] = DateTime.Now;
-
-            Console.WriteLine($"Задача {index} обновлена.");
+            widths[i] = headers[i].Length;
+            foreach (var row in rows)
+                if (i < row.Length && row[i].Length > widths[i]) widths[i] = row[i].Length;
         }
 
-        private static bool IsValidIndex(int index)
-        {
-            if (index < 0 || index >= todoCount)
-            {
-                Console.WriteLine("Ошибка: задачи с таким индексом нет.");
-                return false;
-            }
+        PrintRow(headers.ToArray(), widths);
+        Console.WriteLine(string.Concat(widths.Select(w => new string('-', w + 2))));
+        foreach (var row in rows) PrintRow(row, widths);
+    }
 
-            return true;
-        }
+    private static void PrintRow(string[] cells, int[] widths)
+    {
+        for (int i = 0; i < cells.Length; i++)
+            Console.Write(cells[i].PadRight(widths[i] + 2));
+        Console.WriteLine();
+    }
 
-        private static bool TryExtractQuotedText(
-            string rawText,
-            out string text)
-        {
-            rawText = rawText.Trim();
-            text = string.Empty;
-
-            if (rawText.Length < 2 ||
-                rawText[0] != '"' ||
-                rawText[rawText.Length - 1] != '"')
-            {
-                return false;
-            }
-
-            text = rawText.Substring(1, rawText.Length - 2);
-            return !string.IsNullOrWhiteSpace(text);
-        }
-
-        private static void EnsureCapacity()
-        {
-            if (todoCount < todos.Length)
-            {
-                return;
-            }
-
-            int newCapacity = todos.Length * CapacityMultiplier;
-
-            string[] newTodos = new string[newCapacity];
-            bool[] newStatuses = new bool[newCapacity];
-            DateTime[] newDates = new DateTime[newCapacity];
-
-            for (int i = 0; i < todoCount; i++)
-            {
-                newTodos[i] = todos[i];
-                newStatuses[i] = statuses[i];
-                newDates[i] = dates[i];
-            }
-
-            todos = newTodos;
-            statuses = newStatuses;
-            dates = newDates;
-
-            Console.WriteLine($"Массивы расширены до {newCapacity} элементов.");
-        }
+    private static void PrintHelp()
+    {
+        Console.WriteLine("Доступные команды:");
+        Console.WriteLine("  add [текст]             - добавить задачу");
+        Console.WriteLine("  add --multiline (-m)    - добавить многострочную задачу (ввод до !end)");
+        Console.WriteLine("  view                    - показать задачи");
+        Console.WriteLine("  view --index (-i)       - показать ID");
+        Console.WriteLine("  view --status (-s)      - показать статус");
+        Console.WriteLine("  view --update-date (-d) - показать дату изменения");
+        Console.WriteLine("  view --all (-a)         - показать все столбцы");
+        Console.WriteLine("  read <idx>              - полный текст задачи по ID");
+        Console.WriteLine("  help                    - эта справка");
+        Console.WriteLine("  exit                    - выход");
     }
 }
